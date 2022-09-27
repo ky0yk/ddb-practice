@@ -29,4 +29,9 @@ class UserController @Inject() (dbClient: UserDBClient)(
         user => dbClient.createIfNotExist(user).map(const(Ok)) // -- (4)
       )
   }
+
+  def get(id: String) = Action.async { _ =>
+    val res = dbClient.getByV2(id)
+    Future(Ok(res.toString))
+  }
 }
