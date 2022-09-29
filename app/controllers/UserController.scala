@@ -33,6 +33,18 @@ class UserController @Inject() (
       )
   }
 
+  def postV2 = Action.async(parse.json) { req =>
+    req.body
+      .validate[User]
+      .fold( // -- (2)
+        invalid => Future(BadRequest), // -- (3)
+        user => {
+          val a = dbClientV2.put(user)
+          Future(Ok(a.toString))
+        }
+      )
+  }
+
   def get(id: String) = Action.async { _ =>
     val res = dbClientV2.get(id)
     Future(Ok(res.toString))

@@ -1,6 +1,5 @@
 package infra.dbclients
 
-import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec
 import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Item}
 import domain.User
 import software.amazon.awssdk.auth.credentials.{
@@ -11,23 +10,22 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.{
   AttributeValue,
-  GetItemRequest
+  GetItemRequest,
+  PutItemRequest,
+  PutItemResponse
 }
 
 import java.net.URI
 import java.util.HashMap
 import javax.inject.Inject
-import scala.Function.const
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
 
 /** user db client
   */
 class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
 
-  private val table = dynamoDB.getTable("users")
+  val table = "users"
 
   val dynamodb = DynamoDbClient
     .builder()
@@ -47,8 +45,20 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     keyToGet.put("user_id", AttributeValue.builder().s(id).build())
 
     val req =
-      GetItemRequest.builder().key(keyToGet).tableName("users").build()
+      GetItemRequest.builder().key(keyToGet).tableName(table).build()
     dynamodb.getItem(req).item().asScala
+  }
+
+  def put(user: User): PutItemResponse = {
+    val keyToPut = Map(
+      "user_id" -> AttributeValue.builder().s(user.id).build(),
+      "user_name" -> AttributeValue.builder().s(user.name).build(),
+      "user_age" -> AttributeValue.builder().n(user.age.toString).build()
+    ).asJava
+
+    val req =
+      PutItemRequest.builder().item(keyToPut).tableName(table).build()
+    dynamodb.putItem(req)
   }
 
 }
