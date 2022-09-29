@@ -1,19 +1,22 @@
 package infra.dbclients
 
-import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Item}
-import domain.User
-import software.amazon.awssdk.auth.credentials.{
-  AwsBasicCredentials,
-  StaticCredentialsProvider
-}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.{
   AttributeValue,
+  DeleteItemRequest,
+  DynamoDbException,
   GetItemRequest,
   PutItemRequest,
   PutItemResponse,
   ScanRequest
+}
+
+import com.amazonaws.services.dynamodbv2.document.DynamoDB
+import domain.User
+import software.amazon.awssdk.auth.credentials.{
+  AwsBasicCredentials,
+  StaticCredentialsProvider
 }
 
 import java.net.URI
@@ -39,8 +42,6 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     .region(Region.AP_NORTHEAST_1)
     .build()
 
-  // NOTE: 以下を参考に実装
-  // https://www.letitride.jp/entry/2020/06/06/225514
   def get(id: String): mutable.Map[String, AttributeValue] = {
     val keyToGet = new HashMap[String, AttributeValue]()
     keyToGet.put("user_id", AttributeValue.builder().s(id).build())
@@ -67,7 +68,14 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     dynamodb.scan(req).items()
   }
 
-  def delete = ???
+  def delete(id: String) = {
+    val keyToGet = Map(
+      "user_id" -> AttributeValue.builder().s(id).build()
+    ).asJava
+
+    val req = DeleteItemRequest.builder().key(keyToGet).tableName(table).build()
+    dynamodb.deleteItem(req)
+  }
 
   def patch = ???
 }

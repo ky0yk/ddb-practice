@@ -54,4 +54,9 @@ class UserController @Inject() (
     val res = dbClientV2.get(id)
     Future(Ok(res.toString))
   }
+
+  def delete(id: String) = Action.async {
+    val res = dbClientV2.delete(id)
+    Future(Ok(res.toString))
+  }
 }
