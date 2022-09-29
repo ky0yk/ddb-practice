@@ -2,7 +2,7 @@ package controllers.user
 
 import javax.inject.Inject
 import domain.User
-import infra.dbclients.UserDBClient
+import infra.dbclients.{UserDBClient, UserDBClientV2}
 import play.api.mvc.{BaseController, ControllerComponents}
 
 import scala.concurrent.Future
@@ -12,7 +12,10 @@ import scala.Function.const
 /** controller for user endpoint
   * @param dbClient user db client
   */
-class UserController @Inject() (dbClient: UserDBClient)(
+class UserController @Inject() (
+    dbClient: UserDBClient,
+    dbClientV2: UserDBClientV2
+)(
     val controllerComponents: ControllerComponents
 ) extends BaseController {
 
@@ -31,7 +34,7 @@ class UserController @Inject() (dbClient: UserDBClient)(
   }
 
   def get(id: String) = Action.async { _ =>
-    val res = dbClient.getByV2(id)
+    val res = dbClientV2.get(id)
     Future(Ok(res.toString))
   }
 }

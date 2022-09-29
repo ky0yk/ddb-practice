@@ -20,7 +20,9 @@ import java.net.URI
 import java.util.HashMap
 import scala.concurrent.Future
 import scala.Function.const
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 /** user db client
   */
@@ -47,27 +49,5 @@ class UserDBClient @Inject() (dynamoDB: DynamoDB) {
       .withPrimaryKey("user_id", user.id)
       .withString("name", user.name)
       .withInt("age", user.age)
-
-  // NOTE: 以下を参考に実装
-  // https://www.letitride.jp/entry/2020/06/06/225514
-  def getByV2(id: String): GetItemResponse = {
-    val dynamodb = DynamoDbClient
-      .builder()
-      .endpointOverride(URI.create("http://localhost:8000"))
-      .credentialsProvider(
-        StaticCredentialsProvider.create(
-          AwsBasicCredentials.create("a", "a")
-        )
-      )
-      .region(Region.AP_NORTHEAST_1)
-      .build()
-
-    val keyToGet = new HashMap[String, AttributeValue]()
-    keyToGet.put("user_id", AttributeValue.builder().s(id).build())
-
-    val request =
-      GetItemRequest.builder().key(keyToGet).tableName("users").build()
-    dynamodb.getItem(request)
-  }
 
 }
