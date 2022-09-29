@@ -45,6 +45,11 @@ class UserController @Inject() (
       )
   }
 
+  def list = Action.async {
+    val res = dbClientV2.list
+    Future(Ok(res.toString))
+  }
+
   def get(id: String) = Action.async { _ =>
     val res = dbClientV2.get(id)
     Future(Ok(res.toString))

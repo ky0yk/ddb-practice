@@ -12,7 +12,8 @@ import software.amazon.awssdk.services.dynamodb.model.{
   AttributeValue,
   GetItemRequest,
   PutItemRequest,
-  PutItemResponse
+  PutItemResponse,
+  ScanRequest
 }
 
 import java.net.URI
@@ -61,4 +62,12 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     dynamodb.putItem(req)
   }
 
+  def list = {
+    val req = ScanRequest.builder().tableName(table).build()
+    dynamodb.scan(req).items()
+  }
+
+  def delete = ???
+
+  def patch = ???
 }
