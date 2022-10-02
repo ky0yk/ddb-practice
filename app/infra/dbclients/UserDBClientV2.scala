@@ -3,17 +3,19 @@ package infra.dbclients
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.{
+  AttributeAction,
   AttributeValue,
+  AttributeValueUpdate,
   DeleteItemRequest,
   DynamoDbException,
   GetItemRequest,
   PutItemRequest,
   PutItemResponse,
-  ScanRequest
+  ScanRequest,
+  UpdateItemRequest
 }
-
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
-import domain.User
+import domain.{User, UserUpdateRequest}
 import software.amazon.awssdk.auth.credentials.{
   AwsBasicCredentials,
   StaticCredentialsProvider
@@ -22,6 +24,7 @@ import software.amazon.awssdk.auth.credentials.{
 import java.net.URI
 import java.util.HashMap
 import javax.inject.Inject
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
 
@@ -77,5 +80,47 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     dynamodb.deleteItem(req)
   }
 
-  def patch = ???
+  def update(id: String, u: UserUpdateRequest) = {
+
+    val key = Map("user_id" -> AttributeValue.builder().s(id).build()).asJava
+
+    val name =
+      u.name match {
+        case Some(v) => {
+          val updateVal = AttributeValue.builder().s(v).build()
+          ("user_name" -> AttributeValueUpdate
+            .builder()
+            .value(updateVal)
+            .action(AttributeAction.PUT)
+            .build())
+        }
+        case None => None
+      }
+
+    val age =
+      u.age match {
+        case Some(v) =>
+          ("user_age" -> AttributeValueUpdate
+            .builder()
+            .value(AttributeValue.builder().s(v.toString).build()))
+        case None => None
+      }
+
+    val updatedValue = List(name, age)
+      .filter(_ != None)
+      .map { case (k: String, v: AttributeValueUpdate) =>
+        (k, v)
+      }
+      .toMap
+      .asJava
+
+    val req =
+      UpdateItemRequest
+        .builder()
+        .tableName(table)
+        .key(key)
+        .attributeUpdates(updatedValue)
+        .build()
+    dynamodb.updateItem(req)
+  }
 }

@@ -1,7 +1,7 @@
 package controllers.user
 
 import javax.inject.Inject
-import domain.User
+import domain.{User, UserUpdateRequest}
 import infra.dbclients.{UserDBClient, UserDBClientV2}
 import play.api.mvc.{BaseController, ControllerComponents}
 
@@ -41,6 +41,18 @@ class UserController @Inject() (
         user => {
           val a = dbClientV2.put(user)
           Future(Ok(a.toString))
+        }
+      )
+  }
+
+  def update(id: String) = Action.async(parse.json) { req =>
+    req.body
+      .validate[UserUpdateRequest]
+      .fold( // -- (2)
+        invalid => Future(BadRequest), // -- (3)
+        req => {
+          val res = dbClientV2.update(id, req)
+          Future(Ok(res.toString))
         }
       )
   }
