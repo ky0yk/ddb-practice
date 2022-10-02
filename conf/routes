@@ -1,10 +1,9 @@
 POST        /api/v1/users            controllers.user.UserController.post
 
-
+GET         /api/v2/users            controllers.user.UserController.list
+GET         /api/v2/users/:id        controllers.user.UserController.find(id: String)
 POST        /api/v2/users            controllers.user.UserController.postV2
 PATCH       /api/v2/users/:id        controllers.user.UserController.update(id: String)
-GET         /api/v2/users            controllers.user.UserController.list
-GET         /api/v2/users/:id        controllers.user.UserController.get(id: String)
 DELETE      /api/v2/users/:id        controllers.user.UserController.delete(id: String)
 
 

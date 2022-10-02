@@ -33,14 +33,24 @@ class UserController @Inject() (
       )
   }
 
+  def list = Action.async {
+    val res = dbClientV2.list
+    Future(Ok(res.toString))
+  }
+
+  def find(id: String) = Action.async { _ =>
+    val res = dbClientV2.find(id)
+    Future(Ok(res.toString))
+  }
+
   def postV2 = Action.async(parse.json) { req =>
     req.body
       .validate[User]
-      .fold( // -- (2)
-        invalid => Future(BadRequest), // -- (3)
+      .fold(
+        invalid => Future(BadRequest),
         user => {
-          val a = dbClientV2.put(user)
-          Future(Ok(a.toString))
+          val res = dbClientV2.put(user)
+          Future(Ok(res.toString))
         }
       )
   }
@@ -48,23 +58,13 @@ class UserController @Inject() (
   def update(id: String) = Action.async(parse.json) { req =>
     req.body
       .validate[UserUpdateRequest]
-      .fold( // -- (2)
-        invalid => Future(BadRequest), // -- (3)
+      .fold(
+        invalid => Future(BadRequest),
         req => {
           val res = dbClientV2.update(id, req)
           Future(Ok(res.toString))
         }
       )
-  }
-
-  def list = Action.async {
-    val res = dbClientV2.list
-    Future(Ok(res.toString))
-  }
-
-  def get(id: String) = Action.async { _ =>
-    val res = dbClientV2.get(id)
-    Future(Ok(res.toString))
   }
 
   def delete(id: String) = Action.async {
