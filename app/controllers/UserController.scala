@@ -43,32 +43,32 @@ class UserController @Inject() (
     Future(Ok(res.toString))
   }
 
-  def postV2 = Action.async(parse.json) { req =>
+  def postV2 = Action(parse.json) { req =>
     req.body
       .validate[User]
       .fold(
-        invalid => Future(BadRequest),
+        invalid => BadRequest,
         user => {
           val res = dbClientV2.put(user)
-          Future(Ok(res.toString))
+          Ok(res.toString)
         }
       )
   }
 
-  def update(id: String) = Action.async(parse.json) { req =>
+  def update(id: String) = Action(parse.json) { req =>
     req.body
       .validate[UserUpdateRequest]
       .fold(
-        invalid => Future(BadRequest),
+        invalid => BadRequest,
         req => {
           val res = dbClientV2.update(id, req)
-          Future(Ok(res.toString))
+          Ok(res.toString)
         }
       )
   }
 
-  def delete(id: String) = Action.async {
+  def delete(id: String) = Action {
     val res = dbClientV2.delete(id)
-    Future(Ok(res.toString))
+    Ok(res.toString)
   }
 }
