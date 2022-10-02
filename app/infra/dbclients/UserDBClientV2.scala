@@ -1,7 +1,10 @@
 package infra.dbclients
 
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.{
+  DynamoDbAsyncClient,
+  DynamoDbClient
+}
 import software.amazon.awssdk.services.dynamodb.model.{
   AttributeAction,
   AttributeValue,
@@ -29,7 +32,10 @@ import java.net.URI
 import java.util.HashMap
 import javax.inject.Inject
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
+import scala.jdk.FutureConverters.CompletionStageOps
 
 /** user db client
   */
@@ -37,7 +43,7 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
 
   val table = "users"
 
-  val client = DynamoDbClient
+  val client = DynamoDbAsyncClient
     .builder()
     .endpointOverride(URI.create("http://localhost:8000"))
     .credentialsProvider(
@@ -48,19 +54,19 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
     .region(Region.AP_NORTHEAST_1)
     .build()
 
-  def list: ScanResponse = {
+  def list: Future[ScanResponse] = {
     val req = ScanRequest.builder().tableName(table).build()
-    client.scan(req)
+    client.scan(req).asScala
   }
 
-  def find(id: String): GetItemResponse = {
+  def find(id: String): Future[GetItemResponse] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     val req =
       GetItemRequest.builder().tableName(table).key(key).build()
-    client.getItem(req)
+    client.getItem(req).asScala
   }
 
-  def put(user: User): PutItemResponse = {
+  def put(user: User): Future[PutItemResponse] = {
     val item = Map(
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
@@ -69,16 +75,16 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
 
     val req =
       PutItemRequest.builder().tableName(table).item(item).build()
-    client.putItem(req)
+    client.putItem(req).asScala
   }
 
-  def delete(id: String): DeleteItemResponse = {
+  def delete(id: String): Future[DeleteItemResponse] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
-    client.deleteItem(req)
+    client.deleteItem(req).asScala
   }
 
-  def update(id: String, u: UserUpdateRequest) = {
+  def update(id: String, u: UserUpdateRequest): Future[UpdateItemResponse] = {
     val updatedValues =
       List(
         toUpdateAttTuple("user_name", u.name),
@@ -91,21 +97,15 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
         .toMap
         .asJava
 
-    // 更新する項目がない場合は何もしない
-    if (updatedValues.isEmpty) {
-      println("no update...")
-    } else {
-      val key = Map("user_id" -> AttributeValue.builder().s(id).build()).asJava
-      val req =
-        UpdateItemRequest
-          .builder()
-          .tableName(table)
-          .key(key)
-          .attributeUpdates(updatedValues)
-          .build()
-      client.updateItem(req)
-      println("updated!")
-    }
+    val key = Map("user_id" -> AttributeValue.builder().s(id).build()).asJava
+    val req =
+      UpdateItemRequest
+        .builder()
+        .tableName(table)
+        .key(key)
+        .attributeUpdates(updatedValues)
+        .build()
+    client.updateItem(req).asScala
   }
 
   private def toAttS(v: String): AttributeValue =
