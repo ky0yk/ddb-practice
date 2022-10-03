@@ -87,17 +87,21 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
   def update(id: String, u: UserUpdateRequest): Future[UpdateItemResponse] = {
     val updatedValues =
       List(
-        toUpdateAttTuple("user_name", u.name),
-        toUpdateAttTuple("user_age", u.age)
+        ("user_name", u.name),
+        ("user_age", u.age)
       )
-        .filter(_ != None)
-        .map { case (k: String, v: AttributeValueUpdate) =>
-          (k, v)
-        }
+        .filter(_._2.isDefined)
+        // fixme 例外になるケースを追加する
+        .map(_ match {
+          case (s, Some(v: String)) if s == "user_name" =>
+            (s -> (toUpdateAttS(v)))
+          case (s, Some(v: Int)) if s == "user_age" =>
+            (s -> (toUpdateAttN(v)))
+        })
         .toMap
         .asJava
 
-    val key = Map("user_id" -> AttributeValue.builder().s(id).build()).asJava
+    val key = Map("user_id" -> toAttS(id)).asJava
     val req =
       UpdateItemRequest
         .builder()
@@ -114,24 +118,24 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
   private def toAttN(v: Int): AttributeValue =
     AttributeValue.builder().s(v.toString).build()
 
-  private def toUpdateAtt(
-      attVal: AttributeValue
+  private def toUpdateAttS(
+      v: String
   ): AttributeValueUpdate = {
     AttributeValueUpdate
       .builder()
-      .value(attVal)
+      .value(toAttS(v))
       .action(AttributeAction.PUT)
       .build()
   }
 
-  private def toUpdateAttTuple(field: String, value: Option[Any]) = {
-    value match {
-      case Some(v: String) =>
-        (field -> toUpdateAtt(toAttS(v)))
-      case Some(v: Int) =>
-        (field -> toUpdateAtt(toAttN(v)))
-      case _ => None
-    }
+  private def toUpdateAttN(
+      v: Int
+  ): AttributeValueUpdate = {
+    AttributeValueUpdate
+      .builder()
+      .value(toAttN(v))
+      .action(AttributeAction.PUT)
+      .build()
   }
 
 }
