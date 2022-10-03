@@ -1,10 +1,7 @@
 package infra.dbclients
 
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.dynamodb.{
-  DynamoDbAsyncClient,
-  DynamoDbClient
-}
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
+
 import software.amazon.awssdk.services.dynamodb.model.{
   AttributeAction,
   AttributeValue,
@@ -21,38 +18,18 @@ import software.amazon.awssdk.services.dynamodb.model.{
   UpdateItemRequest,
   UpdateItemResponse
 }
-import com.amazonaws.services.dynamodbv2.document.DynamoDB
-import domain.{User, UserUpdateRequest}
-import software.amazon.awssdk.auth.credentials.{
-  AwsBasicCredentials,
-  StaticCredentialsProvider
-}
 
-import java.net.URI
-import java.util.HashMap
+import domain.{User, UserUpdateRequest}
 import javax.inject.Inject
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
+import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.FutureConverters.CompletionStageOps
 
 /** user db client
   */
-class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
+class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
 
-  val table = "users"
-
-  val client = DynamoDbAsyncClient
-    .builder()
-    .endpointOverride(URI.create("http://localhost:8000"))
-    .credentialsProvider(
-      StaticCredentialsProvider.create(
-        AwsBasicCredentials.create("dummy", "dummy")
-      )
-    )
-    .region(Region.AP_NORTHEAST_1)
-    .build()
+  private val table = "users"
 
   def list: Future[ScanResponse] = {
     val req = ScanRequest.builder().tableName(table).build()
