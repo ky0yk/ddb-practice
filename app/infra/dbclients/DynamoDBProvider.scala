@@ -1,7 +1,6 @@
 package infra.dbclients
 
-import javax.inject.{Provider, Inject}
-
+import javax.inject.{Inject, Provider}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import play.api.Configuration
@@ -18,4 +17,5 @@ class DynamoDBProvider @Inject() (config: Configuration)
     client.setEndpoint(config.underlying.getString("dynamoDB.endPoint"))
     new DynamoDB(client)
   }
+
 }

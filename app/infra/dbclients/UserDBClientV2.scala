@@ -30,16 +30,29 @@ import software.amazon.awssdk.auth.credentials.{
 
 import java.net.URI
 import java.util.HashMap
+import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
 import scala.jdk.FutureConverters.CompletionStageOps
+import java.util.{Map => JavaMap}
 
 /** user db client
   */
 class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
+
+  // AWS SDK for Javaをスムーズに利用するためにimplicit conversionを利用
+  implicit def javaFutureToScalaFuture[T](
+      arg: CompletableFuture[T]
+  ): Future[T] =
+    arg.asScala
+
+  implicit def scalaMapToJavaMap[T, U](
+      arg: Map[T, U]
+  ): JavaMap[T, U] =
+    arg.asJava
 
   val table = "users"
 
@@ -56,14 +69,14 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
 
   def list: Future[ScanResponse] = {
     val req = ScanRequest.builder().tableName(table).build()
-    client.scan(req).asScala
+    client.scan(req)
   }
 
   def find(id: String): Future[GetItemResponse] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     val req =
       GetItemRequest.builder().tableName(table).key(key).build()
-    client.getItem(req).asScala
+    client.getItem(req)
   }
 
   def put(user: User): Future[PutItemResponse] = {
@@ -71,17 +84,17 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
       "user_age" -> toAttN(user.age)
-    ).asJava
+    )
 
     val req =
       PutItemRequest.builder().tableName(table).item(item).build()
-    client.putItem(req).asScala
+    client.putItem(req)
   }
 
   def delete(id: String): Future[DeleteItemResponse] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
-    client.deleteItem(req).asScala
+    client.deleteItem(req)
   }
 
   def update(id: String, u: UserUpdateRequest): Future[UpdateItemResponse] = {
@@ -99,7 +112,6 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
             (s -> (toUpdateAttN(v)))
         })
         .toMap
-        .asJava
 
     val key = Map("user_id" -> toAttS(id)).asJava
     val req =
@@ -109,7 +121,7 @@ class UserDBClientV2 @Inject() (dynamoDB: DynamoDB) {
         .key(key)
         .attributeUpdates(updatedValues)
         .build()
-    client.updateItem(req).asScala
+    client.updateItem(req)
   }
 
   private def toAttS(v: String): AttributeValue =
