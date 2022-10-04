@@ -3,7 +3,8 @@ package modules
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.google.inject.AbstractModule
 import controllers.user.UserController
-import infra.dbclients.{DynamoDBProvider, UserDBClient}
+import infra.dbclients.{DynamoDBProvider, DynamoDBProviderV2, UserDBClient}
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 /** resolves DI
   */
@@ -11,5 +12,9 @@ class AppDependencyModule extends AbstractModule {
 
   override def configure() = {
     bind(classOf[DynamoDB]).toProvider(classOf[DynamoDBProvider]) // -- (1)
+    bind(classOf[DynamoDbAsyncClient]).toProvider(
+      classOf[DynamoDBProviderV2]
+    )
+
   }
 }
