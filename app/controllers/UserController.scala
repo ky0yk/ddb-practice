@@ -38,7 +38,12 @@ class UserController @Inject() (
   }
 
   def find(id: String) = Action.async { _ =>
-    dbClientV2.find(id).map(res => Ok(res.toString))
+    dbClientV2
+      .find(id)
+      .map {
+        case Some(v) => Ok(v.toString)
+        case None    => NotFound
+      }
   }
 
   def postV2 = Action.async(parse.json) { req =>

@@ -53,12 +53,15 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
       )
   }
 
-  def find(id: String): Future[User] = {
+  def find(id: String): Future[Option[User]] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     val req = GetItemRequest.builder().tableName(table).key(key).build()
     client
       .getItem(req)
-      .map(res => convertToUser(res.item()))
+      .map(res =>
+        if (res.item().isEmpty) None
+        else Some(convertToUser(res.item()))
+      )
   }
 
   def put(user: User): Future[Unit] = {
