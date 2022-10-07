@@ -85,7 +85,6 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
       .transform(const((): Unit), identity)
   }
 
-  // fixme upsertになってしまっているので、存在しないIDはエラーにする
   def update(id: String, u: UserUpdateRequest): Future[Unit] = {
     val updatedValues =
       List(

@@ -60,8 +60,12 @@ class UserController @Inject() (
     req.body
       .validate[UserUpdateRequest]
       .fold(
-        invalid => Future(BadRequest),
-        req => dbClientV2.update(id, req).map(const(Ok))
+        invalid => Future(NotFound),
+        updateReq =>
+          dbClientV2.find(id).flatMap {
+            case Some(_) => dbClientV2.update(id, updateReq).map(const(Ok))
+            case _       => Future(BadRequest)
+          }
       )
   }
 
