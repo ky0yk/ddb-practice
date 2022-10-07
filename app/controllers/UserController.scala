@@ -3,6 +3,7 @@ package controllers.user
 import javax.inject.Inject
 import domain.{User, UserUpdateRequest}
 import infra.dbclients.{UserDBClient, UserDBClientV2}
+import play.api.libs.json.Json.toJson
 import play.api.mvc.{BaseController, ControllerComponents}
 
 import scala.concurrent.Future
@@ -34,14 +35,14 @@ class UserController @Inject() (
   }
 
   def list = Action.async {
-    dbClientV2.list.map(res => Ok(res.toString))
+    dbClientV2.list.map(res => Ok(toJson(res)))
   }
 
   def find(id: String) = Action.async { _ =>
     dbClientV2
       .find(id)
       .map {
-        case Some(v) => Ok(v.toString)
+        case Some(v) => Ok(toJson(v))
         case None    => NotFound
       }
   }
@@ -51,7 +52,7 @@ class UserController @Inject() (
       .validate[User]
       .fold(
         invalid => Future(BadRequest),
-        user => dbClientV2.put(user).map(res => Ok(res.toString))
+        user => dbClientV2.put(user).map(const(Ok))
       )
   }
 
@@ -60,11 +61,11 @@ class UserController @Inject() (
       .validate[UserUpdateRequest]
       .fold(
         invalid => Future(BadRequest),
-        req => dbClientV2.update(id, req).map(res => Ok(res.toString))
+        req => dbClientV2.update(id, req).map(const(Ok))
       )
   }
 
   def delete(id: String) = Action.async {
-    dbClientV2.delete(id).map(res => Ok(res.toString))
+    dbClientV2.delete(id).map(const(NoContent))
   }
 }
