@@ -35,7 +35,9 @@ class UserController @Inject() (
   }
 
   def list = Action.async {
-    dbClientV2.list.map(res => Ok(toJson(res)))
+    dbClientV2.list
+      .map(res => Ok(toJson(res)))
+      .recover(_ => InternalServerError)
   }
 
   def find(id: String) = Action.async { _ =>
@@ -45,6 +47,7 @@ class UserController @Inject() (
         case Some(v) => Ok(toJson(v))
         case None    => NotFound
       }
+      .recover(_ => InternalServerError)
   }
 
   def postV2 = Action.async(parse.json) { req =>
@@ -54,6 +57,7 @@ class UserController @Inject() (
         invalid => Future(BadRequest),
         user => dbClientV2.put(user).map(const(Ok))
       )
+      .recover(_ => InternalServerError)
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
@@ -67,9 +71,13 @@ class UserController @Inject() (
             case _       => Future(BadRequest)
           }
       )
+      .recover(_ => InternalServerError)
   }
 
   def delete(id: String) = Action.async {
-    dbClientV2.delete(id).map(const(NoContent))
+    dbClientV2
+      .delete(id)
+      .map(const(NoContent))
+      .recover(_ => InternalServerError)
   }
 }
