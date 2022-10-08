@@ -1,31 +1,26 @@
 package infra.dbclients
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
-
 import software.amazon.awssdk.services.dynamodb.model.{
   AttributeAction,
   AttributeValue,
   AttributeValueUpdate,
   DeleteItemRequest,
-  DeleteItemResponse,
-  DynamoDbException,
   GetItemRequest,
-  GetItemResponse,
   PutItemRequest,
-  PutItemResponse,
   ScanRequest,
-  ScanResponse,
-  UpdateItemRequest,
-  UpdateItemResponse
+  UpdateItemRequest
 }
 
 import java.util.concurrent.CompletableFuture
 import domain.{User, UserUpdateRequest}
 import javax.inject.Inject
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.{ListHasAsScala, MapHasAsJava}
 import scala.jdk.FutureConverters.CompletionStageOps
-import java.util.{Map => JavaMap}
+import java.util.{Map => JavaMap, List => JavaList}
+import scala.Function.const
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /** user db client
   */
@@ -42,39 +37,55 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
   ): JavaMap[T, U] =
     arg.asJava
 
+  implicit def JavaListToScalaList[T](
+      arg: JavaList[T]
+  ): List[T] = arg.asScala.toList
+
   val table = "users"
 
-  def list: Future[ScanResponse] = {
+  def list: Future[List[User]] = {
     val req = ScanRequest.builder().tableName(table).build()
-    client.scan(req)
+    client
+      .scan(req)
+      .map(
+        _.items()
+          .map(convertToUser(_))
+      )
   }
 
-  def find(id: String): Future[GetItemResponse] = {
+  def find(id: String): Future[Option[User]] = {
     val key = Map("user_id" -> toAttS(id)).asJava
-    val req =
-      GetItemRequest.builder().tableName(table).key(key).build()
-    client.getItem(req)
+    val req = GetItemRequest.builder().tableName(table).key(key).build()
+    client
+      .getItem(req)
+      .map(res =>
+        if (res.item().isEmpty) None
+        else Some(convertToUser(res.item()))
+      )
   }
 
-  def put(user: User): Future[PutItemResponse] = {
+  def put(user: User): Future[Unit] = {
     val item = Map(
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
       "user_age" -> toAttN(user.age)
     )
 
-    val req =
-      PutItemRequest.builder().tableName(table).item(item).build()
-    client.putItem(req)
+    val req = PutItemRequest.builder().tableName(table).item(item).build()
+    client
+      .putItem(req)
+      .transform(const((): Unit), identity)
   }
 
-  def delete(id: String): Future[DeleteItemResponse] = {
-    val key = Map("user_id" -> toAttS(id)).asJava
+  def delete(id: String): Future[Unit] = {
+    val key = Map("user_id" -> toAttS(id))
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
-    client.deleteItem(req)
+    client
+      .deleteItem(req)
+      .transform(const((): Unit), identity)
   }
 
-  def update(id: String, u: UserUpdateRequest): Future[UpdateItemResponse] = {
+  def update(id: String, u: UserUpdateRequest): Future[Unit] = {
     val updatedValues =
       List(
         ("user_name", u.name),
@@ -98,14 +109,24 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
         .key(key)
         .attributeUpdates(updatedValues)
         .build()
-    client.updateItem(req)
+    client
+      .updateItem(req)
+      .transform(const((): Unit), identity)
+  }
+
+  private def convertToUser(item: JavaMap[String, AttributeValue]): User = {
+    User(
+      item.get("user_id").s(),
+      item.get("user_name").s(),
+      item.get("user_age").n().toInt
+    )
   }
 
   private def toAttS(v: String): AttributeValue =
     AttributeValue.builder().s(v).build()
 
   private def toAttN(v: Int): AttributeValue =
-    AttributeValue.builder().s(v.toString).build()
+    AttributeValue.builder().n(v.toString).build()
 
   private def toUpdateAttS(
       v: String
@@ -126,5 +147,4 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) {
       .action(AttributeAction.PUT)
       .build()
   }
-
 }

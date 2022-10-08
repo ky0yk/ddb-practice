@@ -3,6 +3,7 @@ package controllers.user
 import javax.inject.Inject
 import domain.{User, UserUpdateRequest}
 import infra.dbclients.{UserDBClient, UserDBClientV2}
+import play.api.libs.json.Json.toJson
 import play.api.mvc.{BaseController, ControllerComponents}
 
 import scala.concurrent.Future
@@ -34,11 +35,19 @@ class UserController @Inject() (
   }
 
   def list = Action.async {
-    dbClientV2.list.map(res => Ok(res.toString))
+    dbClientV2.list
+      .map(res => Ok(toJson(res)))
+      .recover(_ => InternalServerError)
   }
 
   def find(id: String) = Action.async { _ =>
-    dbClientV2.find(id).map(res => Ok(res.toString))
+    dbClientV2
+      .find(id)
+      .map {
+        case Some(v) => Ok(toJson(v))
+        case None    => NotFound
+      }
+      .recover(_ => InternalServerError)
   }
 
   def postV2 = Action.async(parse.json) { req =>
@@ -46,20 +55,29 @@ class UserController @Inject() (
       .validate[User]
       .fold(
         invalid => Future(BadRequest),
-        user => dbClientV2.put(user).map(res => Ok(res.toString))
+        user => dbClientV2.put(user).map(const(Ok))
       )
+      .recover(_ => InternalServerError)
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
     req.body
       .validate[UserUpdateRequest]
       .fold(
-        invalid => Future(BadRequest),
-        req => dbClientV2.update(id, req).map(res => Ok(res.toString))
+        invalid => Future(NotFound),
+        updateReq =>
+          dbClientV2.find(id).flatMap {
+            case Some(_) => dbClientV2.update(id, updateReq).map(const(Ok))
+            case _       => Future(BadRequest)
+          }
       )
+      .recover(_ => InternalServerError)
   }
 
   def delete(id: String) = Action.async {
-    dbClientV2.delete(id).map(res => Ok(res.toString))
+    dbClientV2
+      .delete(id)
+      .map(const(NoContent))
+      .recover(_ => InternalServerError)
   }
 }
