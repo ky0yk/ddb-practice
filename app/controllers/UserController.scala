@@ -3,6 +3,7 @@ package controllers.user
 import javax.inject.Inject
 import domain.{User, UserUpdateRequest}
 import infra.dbclients.{UserDBClient, UserDBClientV2}
+import play.api.Logging
 import play.api.libs.json.Json.toJson
 import play.api.mvc.{BaseController, ControllerComponents}
 
@@ -18,7 +19,8 @@ class UserController @Inject() (
     dbClientV2: UserDBClientV2
 )(
     val controllerComponents: ControllerComponents
-) extends BaseController {
+) extends BaseController
+    with Logging {
 
   import RequestConverter._ // -- (1)
 
@@ -35,22 +37,28 @@ class UserController @Inject() (
   }
 
   def list = Action.async {
+    logger.info("start list")
     dbClientV2.list
       .map(res => Ok(toJson(res)))
       .recover(_ => InternalServerError)
   }
 
   def find(id: String) = Action.async { _ =>
+    logger.info(s"start find. id=${id}")
     dbClientV2
       .find(id)
       .map {
         case Some(v) => Ok(toJson(v))
-        case None    => NotFound
+        case None => {
+          logger.info(s"user not found. id=${id}")
+          NotFound
+        }
       }
       .recover(_ => InternalServerError)
   }
 
   def postV2 = Action.async(parse.json) { req =>
+    logger.info("start post")
     req.body
       .validate[User]
       .fold(
@@ -61,6 +69,7 @@ class UserController @Inject() (
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
+    logger.info(s"start update. id=${id}")
     req.body
       .validate[UserUpdateRequest]
       .fold(
@@ -74,7 +83,9 @@ class UserController @Inject() (
       .recover(_ => InternalServerError)
   }
 
+  // 存在しなかった場合の対応を入れる
   def delete(id: String) = Action.async {
+    logger.info(s"start delete. id=${id}")
     dbClientV2
       .delete(id)
       .map(const(NoContent))
