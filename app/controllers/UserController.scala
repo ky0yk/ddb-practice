@@ -44,19 +44,19 @@ class UserController @Inject() (
   }
 
   def find(id: String) = Action.async { _ =>
-    logger.info(s"start find. id=${id}")
+    logger.info("start find.")
     dbClientV2
       .find(id)
       .map {
         case Some(v) => Ok(toJson(v))
         case None => {
-          logger.info(s"user not found. id=${id}")
           NotFound
         }
       }
       .recover(_ => InternalServerError)
   }
 
+  // fixme 何回もpostできてしまうのを直す
   def postV2 = Action.async(parse.json) { req =>
     logger.info("start post")
     req.body
@@ -69,7 +69,7 @@ class UserController @Inject() (
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
-    logger.info(s"start update. id=${id}")
+    logger.info("start update.")
     req.body
       .validate[UserUpdateRequest]
       .fold(
@@ -83,9 +83,9 @@ class UserController @Inject() (
       .recover(_ => InternalServerError)
   }
 
-  // 存在しなかった場合の対応を入れる
+  // fixme 存在しなかった場合の対応を入れる
   def delete(id: String) = Action.async {
-    logger.info(s"start delete. id=${id}")
+    logger.info("start delete.")
     dbClientV2
       .delete(id)
       .map(const(NoContent))
