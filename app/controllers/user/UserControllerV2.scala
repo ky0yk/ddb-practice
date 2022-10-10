@@ -6,7 +6,12 @@ import controllers.user.RequestConverter.{
   userWrites
 }
 import controllers.user.vo.UserUpdateRequest
-import domain.{JsValueConvertError, User, UserNotFoundError}
+import domain.{
+  InvalidUpdateInfoError,
+  JsValueConvertError,
+  User,
+  UserNotFoundError
+}
 import infra.dbclients.v2.UserDBClientV2
 import play.api.Logging
 import play.api.libs.json.{JsValue, Reads}
@@ -71,9 +76,9 @@ class UserControllerV2 @Inject() (
     } yield Ok
 
     future.recover {
-      case _: JsValueConvertError => BadRequest
-      case _: UserNotFoundError   => NotFound
-      case _                      => InternalServerError
+      case _: JsValueConvertError | _: InvalidUpdateInfoError => BadRequest
+      case _: UserNotFoundError                               => NotFound
+      case _                                                  => InternalServerError
     }
   }
 
