@@ -19,8 +19,7 @@ class UserController @Inject() (
     dbClientV2: UserDBClientV2
 )(
     val controllerComponents: ControllerComponents
-) extends BaseController
-    with Logging {
+) extends BaseController {
 
   import RequestConverter._ // -- (1)
 

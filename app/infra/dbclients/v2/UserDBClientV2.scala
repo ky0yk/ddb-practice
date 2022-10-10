@@ -61,13 +61,13 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       )
   }
 
-  def put(user: User): Future[Unit] = {
+  def create(user: User): Future[Unit] = {
     val item = Map(
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
       "user_age" -> toAttN(user.age)
     )
-    logger.info(s"DDB put user. user=${item}")
+    logger.info(s"DDB create user. user=${item}")
 
     val req = PutItemRequest.builder().tableName(table).item(item).build()
     client

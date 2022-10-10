@@ -18,12 +18,7 @@ import scala.Function.const
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-/** controller for user endpoint
-  *
-  * @param dbClient user db client
-  */
 class UserControllerV2 @Inject() (
-    dbClient: UserDBClient,
     dbClientV2: UserDBClientV2
 )(
     val controllerComponents: ControllerComponents
@@ -31,14 +26,14 @@ class UserControllerV2 @Inject() (
     with Logging {
 
   def list = Action.async {
-    logger.info("start list")
+    logger.info("UserControllerV2#list start")
     dbClientV2.list
       .map(res => Ok(toJson(res)))
       .recover(_ => InternalServerError)
   }
 
   def find(id: String) = Action.async { _ =>
-    logger.info("start find.")
+    logger.info("UserControllerV2#find start")
     dbClientV2
       .find(id)
       .map {
@@ -50,20 +45,20 @@ class UserControllerV2 @Inject() (
       .recover(_ => InternalServerError)
   }
 
-  // fixme 何回もpostできてしまうのを直す
-  def post = Action.async(parse.json) { req =>
-    logger.info("start post")
+  // fixme 何回もcreateできてしまうのを直す
+  def create = Action.async(parse.json) { req =>
+    logger.info("UserControllerV2#create start")
     req.body
       .validate[User]
       .fold(
         invalid => Future(BadRequest),
-        user => dbClientV2.put(user).map(const(Ok))
+        user => dbClientV2.create(user).map(const(Ok))
       )
       .recover(_ => InternalServerError)
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
-    logger.info("start update.")
+    logger.info("UserControllerV2#update start")
     req.body
       .validate[UserUpdateRequest]
       .fold(
@@ -79,7 +74,7 @@ class UserControllerV2 @Inject() (
 
   // fixme 存在しなかった場合の対応を入れる
   def delete(id: String) = Action.async {
-    logger.info("start delete.")
+    logger.info("UserControllerV2#delete start")
     dbClientV2
       .delete(id)
       .map(const(NoContent))
