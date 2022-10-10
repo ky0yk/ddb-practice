@@ -1,28 +1,13 @@
-package infra.dbclients
+package infra.dbclients.v1
 
-import javax.inject.Inject
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec
 import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Item}
 import domain.User
-import software.amazon.awssdk.auth.credentials.{
-  AwsBasicCredentials,
-  StaticCredentialsProvider
-}
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient
-import software.amazon.awssdk.services.dynamodb.model.{
-  AttributeValue,
-  GetItemRequest,
-  GetItemResponse
-}
 
-import java.net.URI
-import java.util.HashMap
-import scala.concurrent.Future
+import javax.inject.Inject
 import scala.Function.const
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.concurrent.Future
 
 /** user db client
   */

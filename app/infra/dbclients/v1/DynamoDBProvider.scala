@@ -1,9 +1,10 @@
-package infra.dbclients
+package infra.dbclients.v1
 
-import javax.inject.{Inject, Provider}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import play.api.Configuration
+
+import javax.inject.{Inject, Provider}
 
 /** DynamoDB provider
   */

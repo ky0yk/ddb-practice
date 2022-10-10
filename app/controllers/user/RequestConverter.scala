@@ -1,6 +1,7 @@
 package controllers.user
 
-import domain.{User, UserUpdateRequest}
+import controllers.user.vo.UserUpdateRequest
+import domain.User
 import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
 import play.api.libs.json.{JsPath, Json, Reads, Writes}
 
