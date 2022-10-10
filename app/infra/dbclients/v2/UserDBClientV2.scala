@@ -1,7 +1,7 @@
 package infra.dbclients.v2
 
 import controllers.user.vo.UserUpdateRequest
-import domain.User
+import domain.{User, UserNotFoundError}
 import play.api.Logging
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.model._
@@ -37,7 +37,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
   val table = "users"
 
   def list: Future[List[User]] = {
-    logger.info("DDB list user.")
+    logger.info("DDB list user start.")
     val req = ScanRequest.builder().tableName(table).build()
     client
       .scan(req)
@@ -47,18 +47,20 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       )
   }
 
-  def find(id: String): Future[Option[User]] = {
+  def find(id: String): Future[User] = {
     val key = Map("user_id" -> toAttS(id)).asJava
-    logger.info(s"DDB find user. id=${id}")
+    logger.info(s"DDB find user start. id=${id}")
     val req = GetItemRequest.builder().tableName(table).key(key).build()
     client
       .getItem(req)
-      .map(res =>
+      .map { res =>
         if (res.item().isEmpty) {
-          logger.warn(s"user not found.")
-          None
-        } else Some(convertToUser(res.item()))
-      )
+          val msg = s"user not found. id=${id}"
+          logger.error(msg)
+          throw UserNotFoundError(msg)
+        }
+        convertToUser(res.item())
+      }
   }
 
   def create(user: User): Future[Unit] = {
@@ -67,7 +69,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       "user_name" -> toAttS(user.name),
       "user_age" -> toAttN(user.age)
     )
-    logger.info(s"DDB create user. user=${item}")
+    logger.info(s"DDB create user start. user=${item}")
 
     val req = PutItemRequest.builder().tableName(table).item(item).build()
     client
@@ -77,7 +79,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
 
   def delete(id: String): Future[Unit] = {
     val key = Map("user_id" -> toAttS(id))
-    logger.info(s"DDB delete user. id=${id}")
+    logger.info(s"DDB delete user start. id=${id}")
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
     client
       .deleteItem(req)
@@ -102,7 +104,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
 
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
-      s"DDB update user. id=${id}. updateValue=${updatedValues}"
+      s"DDB update user start. id=${id}. updateValue=${updatedValues}"
     )
 
     val req =

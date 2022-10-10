@@ -6,15 +6,14 @@ import controllers.user.RequestConverter.{
   userWrites
 }
 import controllers.user.vo.UserUpdateRequest
-import domain.User
-import infra.dbclients.v1.UserDBClient
+import domain.{JsValueConvertError, User, UserNotFoundError}
 import infra.dbclients.v2.UserDBClientV2
 import play.api.Logging
+import play.api.libs.json.{JsValue, Reads}
 import play.api.libs.json.Json.toJson
-import play.api.mvc.{BaseController, ControllerComponents}
+import play.api.mvc.{BaseController, ControllerComponents, Request}
 
 import javax.inject.Inject
-import scala.Function.const
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -27,57 +26,82 @@ class UserControllerV2 @Inject() (
 
   def list = Action.async {
     logger.info("UserControllerV2#list start")
-    dbClientV2.list
-      .map(res => Ok(toJson(res)))
-      .recover(_ => InternalServerError)
+    val future = for {
+      userList <- dbClientV2.list
+    } yield Ok(toJson(userList))
+
+    future.recover { case _ => InternalServerError }
   }
 
   def find(id: String) = Action.async { _ =>
     logger.info("UserControllerV2#find start")
-    dbClientV2
-      .find(id)
-      .map {
-        case Some(v) => Ok(toJson(v))
-        case None => {
-          NotFound
-        }
-      }
-      .recover(_ => InternalServerError)
+
+    val future = for {
+      user <- dbClientV2.find(id)
+    } yield Ok(toJson(user))
+
+    future.recover {
+      case _: UserNotFoundError => NotFound
+      case _                    => InternalServerError
+    }
   }
 
   // fixme 何回もcreateできてしまうのを直す
   def create = Action.async(parse.json) { req =>
     logger.info("UserControllerV2#create start")
-    req.body
-      .validate[User]
-      .fold(
-        invalid => Future(BadRequest),
-        user => dbClientV2.create(user).map(const(Ok))
-      )
-      .recover(_ => InternalServerError)
+
+    val future = for {
+      userInfo <- JsValueToFuture[User](req.body)
+      _ <- dbClientV2.create(userInfo)
+    } yield Ok
+
+    future.recover {
+      case _: JsValueConvertError => BadRequest
+      case _                      => InternalServerError
+    }
   }
 
   def update(id: String) = Action.async(parse.json) { req =>
     logger.info("UserControllerV2#update start")
-    req.body
-      .validate[UserUpdateRequest]
-      .fold(
-        invalid => Future(NotFound),
-        updateReq =>
-          dbClientV2.find(id).flatMap {
-            case Some(_) => dbClientV2.update(id, updateReq).map(const(Ok))
-            case _       => Future(BadRequest)
-          }
-      )
-      .recover(_ => InternalServerError)
+
+    val future = for {
+      updateReq <- JsValueToFuture[UserUpdateRequest](req.body)
+      _ <- dbClientV2.find(id)
+      _ <- dbClientV2.update(id, updateReq)
+    } yield Ok
+
+    future.recover {
+      case _: JsValueConvertError => BadRequest
+      case _: UserNotFoundError   => NotFound
+      case _                      => InternalServerError
+    }
   }
 
-  // fixme 存在しなかった場合の対応を入れる
   def delete(id: String) = Action.async {
     logger.info("UserControllerV2#delete start")
-    dbClientV2
-      .delete(id)
-      .map(const(NoContent))
-      .recover(_ => InternalServerError)
+
+    val future = for {
+      _ <- dbClientV2.find(id)
+      _ <- dbClientV2.delete(id)
+    } yield NoContent
+
+    future.recover {
+      case _: UserNotFoundError => NotFound
+      case _                    => InternalServerError
+    }
+  }
+
+  private def JsValueToFuture[T](
+      body: JsValue
+  )(implicit rds: Reads[T]): Future[T] = {
+    Future {
+      body
+        .validate[T]
+        .getOrElse {
+          val msg = s"invalid request body. request body=${body}"
+          logger.error(msg)
+          throw JsValueConvertError(msg)
+        }
+    }
   }
 }
