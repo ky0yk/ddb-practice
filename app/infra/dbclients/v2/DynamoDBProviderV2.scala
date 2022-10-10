@@ -1,7 +1,5 @@
-package infra.dbclients
+package infra.dbclients.v2
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
-import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import play.api.Configuration
 import software.amazon.awssdk.auth.credentials.{
   AwsBasicCredentials,

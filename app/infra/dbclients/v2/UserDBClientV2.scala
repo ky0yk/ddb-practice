@@ -1,28 +1,19 @@
-package infra.dbclients
+package infra.dbclients.v2
 
+import controllers.user.vo.UserUpdateRequest
+import domain.User
+import play.api.Logging
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
-import software.amazon.awssdk.services.dynamodb.model.{
-  AttributeAction,
-  AttributeValue,
-  AttributeValueUpdate,
-  DeleteItemRequest,
-  GetItemRequest,
-  PutItemRequest,
-  ScanRequest,
-  UpdateItemRequest
-}
+import software.amazon.awssdk.services.dynamodb.model._
 
 import java.util.concurrent.CompletableFuture
-import domain.{User, UserUpdateRequest}
-import play.api.Logging
-
+import java.util.{List => JavaList, Map => JavaMap}
 import javax.inject.Inject
+import scala.Function.const
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters.{ListHasAsScala, MapHasAsJava}
 import scala.jdk.FutureConverters.CompletionStageOps
-import java.util.{List => JavaList, Map => JavaMap}
-import scala.Function.const
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /** user db client
   */

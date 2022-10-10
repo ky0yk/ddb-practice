@@ -1,10 +1,10 @@
 POST        /api/v1/users            controllers.user.UserController.post
 
-GET         /api/v2/users            controllers.user.UserController.list
-GET         /api/v2/users/:id        controllers.user.UserController.find(id: String)
-POST        /api/v2/users            controllers.user.UserController.postV2
-PATCH       /api/v2/users/:id        controllers.user.UserController.update(id: String)
-DELETE      /api/v2/users/:id        controllers.user.UserController.delete(id: String)
+GET         /api/v2/users            controllers.user.UserControllerV2.list
+GET         /api/v2/users/:id        controllers.user.UserControllerV2.find(id: String)
+POST        /api/v2/users            controllers.user.UserControllerV2.post
+PATCH       /api/v2/users/:id        controllers.user.UserControllerV2.update(id: String)
+DELETE      /api/v2/users/:id        controllers.user.UserControllerV2.delete(id: String)
 
 
 # Map static resources from the /public folder to the /assets URL path
