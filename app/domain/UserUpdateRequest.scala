@@ -1,4 +1,4 @@
-package controllers.user.vo
+package domain
 
 case class UserUpdateRequest(
     name: Option[String],

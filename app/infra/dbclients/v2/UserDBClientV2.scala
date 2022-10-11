@@ -1,39 +1,28 @@
 package infra.dbclients.v2
 
-import controllers.user.vo.UserUpdateRequest
-import domain.{User, UserNotFoundError}
+import domain.{
+  InvalidUpdateInfoError,
+  User,
+  UserNotFoundError,
+  UserUpdateRequest
+}
 import play.api.Logging
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.model._
 
-import java.util.concurrent.CompletableFuture
-import java.util.{List => JavaList, Map => JavaMap}
+import java.util.{Map => JavaMap}
 import javax.inject.Inject
 import scala.Function.const
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.{ListHasAsScala, MapHasAsJava}
-import scala.jdk.FutureConverters.CompletionStageOps
+import scala.jdk.CollectionConverters.MapHasAsJava
+
+// AWS SDK for Javaをスムーズに利用するためにimplicit conversionを利用
+import infra.dbclients.v2.TypeConverter._
 
 /** user db client
   */
 class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
-
-  // AWS SDK for Javaをスムーズに利用するためにimplicit conversionを利用
-  implicit def javaFutureToScalaFuture[T](
-      arg: CompletableFuture[T]
-  ): Future[T] =
-    arg.asScala
-
-  implicit def scalaMapToJavaMap[T, U](
-      arg: Map[T, U]
-  ): JavaMap[T, U] =
-    arg.asJava
-
-  implicit def JavaListToScalaList[T](
-      arg: JavaList[T]
-  ): List[T] = arg.asScala.toList
-
   val table = "users"
 
   def list: Future[List[User]] = {
@@ -43,7 +32,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .scan(req)
       .map(
         _.items()
-          .map(convertToUser(_))
+          .map(toUser(_))
       )
   }
 
@@ -59,7 +48,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
           logger.error(msg)
           throw UserNotFoundError(msg)
         }
-        convertToUser(res.item())
+        toUser(res.item())
       }
   }
 
@@ -86,22 +75,8 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(const((): Unit), identity)
   }
 
-  def update(id: String, u: UserUpdateRequest): Future[Unit] = {
-    val updatedValues =
-      List(
-        ("user_name", u.name),
-        ("user_age", u.age)
-      )
-        .filter(_._2.isDefined)
-        // fixme 例外になるケースを追加する
-        .map(_ match {
-          case (s, Some(v: String)) if s == "user_name" =>
-            (s -> (toUpdateAttS(v)))
-          case (s, Some(v: Int)) if s == "user_age" =>
-            (s -> (toUpdateAttN(v)))
-        })
-        .toMap
-
+  def update(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
+    val updatedValues = toUpdatedValues(updateInfo)
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
       s"DDB update user start. id=${id}. updateValue=${updatedValues}"
@@ -119,12 +94,45 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(const((): Unit), identity)
   }
 
-  private def convertToUser(item: JavaMap[String, AttributeValue]): User = {
+  private def toUser(item: JavaMap[String, AttributeValue]): User = {
     User(
       item.get("user_id").s(),
       item.get("user_name").s(),
       item.get("user_age").n().toInt
     )
+  }
+
+  private def toUpdatedValues(
+      updateInfo: UserUpdateRequest
+  ): Map[String, AttributeValueUpdate] = {
+
+    val updatedValues =
+      List(
+        ("user_name", updateInfo.name),
+        ("user_age", updateInfo.age)
+      )
+        .filter(_._2.isDefined)
+        .map(_ match {
+          case (s, Some(v: String)) if s == "user_name" =>
+            (s -> (toUpdateAttS(v)))
+          case (s, Some(v: Int)) if s == "user_age" =>
+            (s -> (toUpdateAttN(v)))
+          case _ => {
+            val msg = s"invalid information. request=${updateInfo}"
+            logger.error(msg)
+            throw InvalidUpdateInfoError(msg)
+          }
+        })
+        .toMap
+
+    if (updatedValues.size == 0) {
+      val msg =
+        s"request does not have valid information. request=${updateInfo}"
+      logger.error(msg)
+      throw InvalidUpdateInfoError(msg)
+    }
+
+    updatedValues
   }
 
   private def toAttS(v: String): AttributeValue =
