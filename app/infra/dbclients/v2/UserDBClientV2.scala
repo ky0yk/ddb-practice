@@ -71,8 +71,8 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(const((): Unit), identity)
   }
 
-  def update(id: String, u: UserUpdateRequest): Future[Unit] = {
-    val updatedValues = toUpdatedValues(u)
+  def update(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
+    val updatedValues = toUpdatedValues(updateInfo)
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
       s"DDB update user start. id=${id}. updateValue=${updatedValues}"
@@ -99,13 +99,13 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
   }
 
   private def toUpdatedValues(
-      u: UserUpdateRequest
+      updateInfo: UserUpdateRequest
   ): Map[String, AttributeValueUpdate] = {
 
     val updatedValues =
       List(
-        ("user_name", u.name),
-        ("user_age", u.age)
+        ("user_name", updateInfo.name),
+        ("user_age", updateInfo.age)
       )
         .filter(_._2.isDefined)
         .map(_ match {
@@ -114,7 +114,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
           case (s, Some(v: Int)) if s == "user_age" =>
             (s -> (toUpdateAttN(v)))
           case _ => {
-            val msg = s"invalid information. request=${u}"
+            val msg = s"invalid information. request=${updateInfo}"
             logger.error(msg)
             throw InvalidUpdateInfoError(msg)
           }
@@ -122,7 +122,8 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
         .toMap
 
     if (updatedValues.size == 0) {
-      val msg = s"request does not have valid information. request=${u}"
+      val msg =
+        s"request does not have valid information. request=${updateInfo}"
       logger.error(msg)
       throw InvalidUpdateInfoError(msg)
     }
