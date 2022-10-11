@@ -1,7 +1,11 @@
 package infra.dbclients.v2
 
-import controllers.user.vo.UserUpdateRequest
-import domain.{InvalidUpdateInfoError, User, UserNotFoundError}
+import domain.{
+  InvalidUpdateInfoError,
+  User,
+  UserNotFoundError,
+  UserUpdateRequest
+}
 import play.api.Logging
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.model._

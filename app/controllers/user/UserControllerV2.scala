@@ -5,12 +5,12 @@ import controllers.user.RequestConverter.{
   userUpdateRequestReads,
   userWrites
 }
-import controllers.user.vo.UserUpdateRequest
 import domain.{
   InvalidUpdateInfoError,
   JsValueConvertError,
   User,
-  UserNotFoundError
+  UserNotFoundError,
+  UserUpdateRequest
 }
 import infra.dbclients.v2.UserDBClientV2
 import play.api.Logging
