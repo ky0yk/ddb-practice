@@ -17,12 +17,12 @@ import infra.dbclients.v2.TypeConverter._
 class UserDBClientV2Spec extends PlaySpecification with Mockito {
 
   trait DBClients {
-    val table = "users"
     val dynamoDbClient = DynamoDbAsyncClient
       .builder()
       .endpointOverride(URI.create("http://localhost:8000"))
       .build()
     val userDBClient = new UserDBClientV2(dynamoDbClient)
+    val table = "users"
     val ScanReq = ScanRequest.builder().tableName(table).build()
   }
 
@@ -64,25 +64,20 @@ class UserDBClientV2Spec extends PlaySpecification with Mockito {
         await(dynamoDbClient.scan(ScanReq)).items().toSeq.length mustEqual 1
       }
 
-      "" in new Context {
+      "ユーザーと一致するアイテムを作成する" in new Context {
         val future = userDBClient.create(user)
         await(future)
 
-        val key =
-          Map("user_id" -> AttributeValue.builder().s(user.id).build()).asJava
         val getReq = GetItemRequest
           .builder()
           .tableName(table)
-          .key(key)
+          .key(Map("user_id" -> AttributeValue.builder().s(user.id).build()))
           .build()
         val item = await(dynamoDbClient.getItem(getReq))
 
         item.item().get("user_name").s() mustEqual user.name
         item.item().get("user_age").n().toInt mustEqual user.age
-
       }
-
     }
-
   }
 }

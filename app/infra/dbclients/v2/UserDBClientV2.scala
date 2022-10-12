@@ -37,7 +37,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
   }
 
   def find(id: String): Future[User] = {
-    val key = Map("user_id" -> toAttS(id)).asJava
+    val key = Map("user_id" -> toAttS(id))
     logger.info(s"DDB find user start. id=${id}")
     val req = GetItemRequest.builder().tableName(table).key(key).build()
     client
