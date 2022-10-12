@@ -10,6 +10,7 @@ lazy val root = (project in file("."))
     name := """ddb-practice""",
     libraryDependencies ++= Seq(
       guice,
+      specs2 % Test,
       "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
       "com.amazonaws" % "aws-java-sdk" % "1.10.1",
       "software.amazon.awssdk" % "dynamodb" % awsSDKV2Version
