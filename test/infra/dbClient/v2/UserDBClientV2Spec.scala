@@ -80,4 +80,45 @@ class UserDBClientV2Spec extends PlaySpecification with Mockito {
       }
     }
   }
+
+  "ユーザーの取得" >> {
+    "テーブルにユーザーが存在する場合" should {
+      class CreateUserContext
+          extends DBClientBeforeAfter
+          with UserArgs
+          with DBClients {
+        val item = Map(
+          "user_id" -> AttributeValue.builder().s(user.id).build(),
+          "user_name" -> AttributeValue.builder().s(user.name).build(),
+          "user_age" -> AttributeValue.builder().n(user.age.toString).build()
+        )
+        val req = PutItemRequest.builder().item(item).tableName(table).build()
+        dynamoDbClient.putItem(req)
+
+      }
+
+      "成功する" in new CreateUserContext {
+        val future = userDBClient.find(user.id)
+        await(future) must not(throwA[Throwable])
+      }
+
+      "ユーザーと一致するアイテムを取得する" in new CreateUserContext {
+        val future = userDBClient.find(user.id)
+        await(future) mustEqual user
+      }
+    }
+
+    "テーブルにユーザーが存在しない場合" should {
+      class Context extends DBClientBeforeAfter with UserArgs with DBClients
+
+      "失敗する" in new Context {
+        val future = userDBClient.find(user.id)
+        await(future) must (throwA[Throwable])
+      }
+    }
+  }
+
+//  "ユーザーの更新"
+//  "ユーザーの削除"
+
 }
