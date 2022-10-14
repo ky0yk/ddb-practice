@@ -9,11 +9,6 @@ import org.specs2.mutable.BeforeAfter
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 import java.net.URI
-import scala.Function.const
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.jdk.CollectionConverters.MapHasAsJava
-import scala.reflect.ClassManifestFactory.Nothing
-import scala.runtime.Nothing$
 
 // AWS SDK for Javaをスムーズに利用するためにimplicit conversionを利用
 import infra.dbclients.v2.TypeConverter._
@@ -166,6 +161,36 @@ class UserDBClientV2Spec extends PlaySpecification with Mockito {
 
     }
     // TODO あるべき姿を検討する
-//    "テーブルにユーザーが存在しない場合" should {}
+    //    "テーブルにユーザーが存在しない場合" should {}
+  }
+
+  "ユーザーの削除" >> {
+    class DeleteUserContext
+        extends DBClientBeforeAfter
+        with UserArgs
+        with DBClients {
+      val item = Map(
+        "user_id" -> AttributeValue.builder().s(user.id).build(),
+        "user_name" -> AttributeValue.builder().s("bob").build(),
+        "user_age" -> AttributeValue.builder().n("20").build()
+      )
+      val req = PutItemRequest.builder().item(item).tableName(table).build()
+      dynamoDbClient.putItem(req)
+    }
+
+    "テーブルにユーザーが存在する場合" should {
+      "成功する" in new DeleteUserContext {
+        val future = userDBClient.delete(user.id)
+        await(future) must not(throwA[Throwable])
+      }
+
+      "Unitを返す" in new DeleteUserContext {
+        val future = userDBClient.delete(user.id)
+        await(future) mustEqual ()
+      }
+    }
+
+    // TODO あるべき姿を検討する
+    //    "テーブルにユーザーが存在しない場合" should {}
   }
 }
