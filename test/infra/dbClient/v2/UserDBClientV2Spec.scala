@@ -1,7 +1,7 @@
 package infra.dbClient.v2
 
 import software.amazon.awssdk.services.dynamodb.model._
-import domain.User
+import domain.{User, UserNotFoundError, UserUpdateRequest}
 import org.specs2.mock.Mockito
 import play.api.test.PlaySpecification
 import infra.dbclients.v2.UserDBClientV2
@@ -9,7 +9,11 @@ import org.specs2.mutable.BeforeAfter
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 import java.net.URI
+import scala.Function.const
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.reflect.ClassManifestFactory.Nothing
+import scala.runtime.Nothing$
 
 // AWS SDK for Javaをスムーズに利用するためにimplicit conversionを利用
 import infra.dbclients.v2.TypeConverter._
@@ -113,12 +117,55 @@ class UserDBClientV2Spec extends PlaySpecification with Mockito {
 
       "失敗する" in new Context {
         val future = userDBClient.find(user.id)
-        await(future) must (throwA[Throwable])
+        await(future) must (throwA[UserNotFoundError])
       }
     }
   }
 
-//  "ユーザーの更新"
-//  "ユーザーの削除"
+  "ユーザーの更新" >> {
+    "テーブルにユーザーが存在する場合" should {
+      class UpdateUserContext
+          extends DBClientBeforeAfter
+          with UserArgs
+          with DBClients {
+        val item = Map(
+          "user_id" -> AttributeValue.builder().s(user.id).build(),
+          "user_name" -> AttributeValue.builder().s("bob").build(),
+          "user_age" -> AttributeValue.builder().n("20").build()
+        )
+        val req = PutItemRequest.builder().item(item).tableName(table).build()
+        dynamoDbClient.putItem(req)
+      }
 
+      "成功する" in new UpdateUserContext {
+        val future = userDBClient.find(user.id)
+        await(future) must not(throwA[Throwable])
+      }
+
+      "Unitを返す" in new UpdateUserContext {
+        val userUpdateReq = UserUpdateRequest(Some(user.name), Some(user.age))
+        val future = userDBClient.update(user.id, userUpdateReq)
+        await(future) mustEqual ()
+      }
+
+      "更新後のユーザーと一致するアイテムを取得する" in new UpdateUserContext {
+        val userUpdateReq = UserUpdateRequest(Some(user.name), Some(user.age))
+        val future = userDBClient.update(user.id, userUpdateReq)
+        await(future)
+
+        val getReq = GetItemRequest
+          .builder()
+          .tableName(table)
+          .key(Map("user_id" -> AttributeValue.builder().s(user.id).build()))
+          .build()
+        val x = await(dynamoDbClient.getItem(getReq))
+
+        x.item().get("user_name").s() mustEqual user.name
+        x.item().get("user_age").n().toInt mustEqual user.age
+      }
+
+    }
+    // TODO あるべき姿を検討する
+//    "テーブルにユーザーが存在しない場合" should {}
+  }
 }

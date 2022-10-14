@@ -77,7 +77,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
 
   def update(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
     val updatedValues = toUpdatedValues(updateInfo)
-    val key = Map("user_id" -> toAttS(id)).asJava
+    val key = Map("user_id" -> toAttS(id))
     logger.info(
       s"DDB update user start. id=${id}. updateValue=${updatedValues}"
     )
