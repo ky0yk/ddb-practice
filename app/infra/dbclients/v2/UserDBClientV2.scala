@@ -25,31 +25,28 @@ import infra.dbclients.v2.TypeConverter._
 class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
   val table = "users"
 
-  def list: Future[List[User]] = {
+  def listById: Future[List[User]] = {
     logger.info("DDB list user start.")
     val req = ScanRequest.builder().tableName(table).build()
+
     client
       .scan(req)
       .map(
         _.items()
           .map(toUser(_))
       )
+      .transform(???, ???)
   }
 
-  def find(id: String): Future[User] = {
+  def findById(id: String): Future[Option[User]] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(s"DDB find user start. id=${id}")
     val req = GetItemRequest.builder().tableName(table).key(key).build()
+
     client
       .getItem(req)
-      .map { res =>
-        if (res.item().isEmpty) {
-          val msg = s"user not found. id=${id}"
-          logger.error(msg)
-          throw UserNotFoundError(msg)
-        }
-        toUser(res.item())
-      }
+      .map(u => Option(toUser(u.item())))
+      .transform(???, ???)
   }
 
   def create(user: User): Future[Unit] = {
@@ -59,23 +56,24 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       "user_age" -> toAttN(user.age)
     )
     logger.info(s"DDB create user start. user=${item}")
-
     val req = PutItemRequest.builder().tableName(table).item(item).build()
+
     client
       .putItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), ???)
   }
 
-  def delete(id: String): Future[Unit] = {
+  def deleteById(id: String): Future[Unit] = {
     val key = Map("user_id" -> toAttS(id))
     logger.info(s"DDB delete user start. id=${id}")
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
+
     client
       .deleteItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), ???)
   }
 
-  def update(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
+  def updateById(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
     val updatedValues = toUpdatedValues(updateInfo)
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
@@ -91,7 +89,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
         .build()
     client
       .updateItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), ???)
   }
 
   private def toUser(item: JavaMap[String, AttributeValue]): User = {
