@@ -12,18 +12,19 @@ import domain.{
   UserNotFoundError,
   UserUpdateRequest
 }
-import infra.dbclients.v2.UserDBClientV2
 import play.api.Logging
 import play.api.libs.json.{JsValue, Reads}
 import play.api.libs.json.Json.toJson
-import play.api.mvc.{BaseController, ControllerComponents, Request}
+import play.api.mvc.{BaseController, ControllerComponents}
+import services.user.{DeleteUserService, FindUserService, ResourceNotFoundError}
 
 import javax.inject.Inject
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class UserControllerV2 @Inject() (
-    dbClientV2: UserDBClientV2
+    findUserService: FindUserService,
+    deleteUserService: DeleteUserService
 )(
     val controllerComponents: ControllerComponents
 ) extends BaseController
@@ -42,7 +43,7 @@ class UserControllerV2 @Inject() (
     logger.info("UserControllerV2#find start")
 
     val future = for {
-      user <- dbClientV2.find(id)
+      user <- findUserService.findByUserId(id)
     } yield Ok(toJson(user))
 
     future.recover {
@@ -86,13 +87,12 @@ class UserControllerV2 @Inject() (
     logger.info("UserControllerV2#delete start")
 
     val future = for {
-      _ <- dbClientV2.find(id)
-      _ <- dbClientV2.delete(id)
+      _ <- deleteUserService.delete(id)
     } yield NoContent
 
     future.recover {
-      case _: UserNotFoundError => NotFound
-      case _                    => InternalServerError
+      case _: ResourceNotFoundError => NotFound
+      case _                        => InternalServerError
     }
   }
 
