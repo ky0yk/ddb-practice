@@ -5,8 +5,6 @@ import software.amazon.awssdk.core.exception.SdkServiceException
 object DBClientErrorConverter {
 
   def translateForClientError(error: Throwable): Throwable = {
-    println("-----")
-    println(error.toString)
     error match {
       case e: SdkServiceException =>
         e.statusCode() match {

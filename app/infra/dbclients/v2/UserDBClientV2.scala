@@ -1,7 +1,7 @@
 package infra.dbclients.v2
 
 import domain.{InvalidUpdateInfoError, User, UserUpdateRequest}
-import infra.dbclients.DBClientErrorConverter.translateForClientError
+import DBClientErrorConverter.translateForClientError
 import play.api.Logging
 import services.user.UserStore
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
@@ -24,7 +24,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
     with Logging {
   val table = "users"
 
-  override def list: Future[List[User]] = {
+  override def list: Future[List[Option[User]]] = {
     logger.info("DDB list user start.")
     val req = ScanRequest.builder().tableName(table).build()
 
@@ -44,7 +44,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
 
     client
       .getItem(req)
-      .map(u => Option(toUser(u.item())))
+      .map(u => toUser(u.item()))
       .transform(identity, translateForClientError)
   }
 
@@ -94,12 +94,20 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
       .transform(const((): Unit), translateForClientError)
   }
 
-  private def toUser(item: JavaMap[String, AttributeValue]): User = {
-    User(
-      item.get("user_id").s(),
-      item.get("user_name").s(),
-      item.get("user_age").n().toInt
-    )
+  private def toUser(item: JavaMap[String, AttributeValue]): Option[User] = {
+    item.size() match {
+      case 0 =>
+        logger.warn("user not found.")
+        None
+      case _ =>
+        Some {
+          User(
+            item.get("user_id").s(),
+            item.get("user_name").s(),
+            item.get("user_age").n().toInt
+          )
+        }
+    }
   }
 
   private def toUpdatedValues(
@@ -131,7 +139,6 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
       logger.error(msg)
       throw InvalidUpdateInfoError(msg)
     }
-
     updatedValues
   }
 

@@ -11,7 +11,7 @@ class ListUserService @Inject() (
     userStore: UserStore
 ) extends Logging {
 
-  def list: Future[List[User]] = {
+  def list: Future[List[Option[User]]] = {
     logger.info("ListUserService#list start")
 
     for {
