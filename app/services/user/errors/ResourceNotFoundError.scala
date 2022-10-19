@@ -1,3 +1,3 @@
-package services.user
+package services.user.errors
 
 class ResourceNotFoundError extends RuntimeException {}

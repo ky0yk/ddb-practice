@@ -16,15 +16,25 @@ import play.api.Logging
 import play.api.libs.json.{JsValue, Reads}
 import play.api.libs.json.Json.toJson
 import play.api.mvc.{BaseController, ControllerComponents}
-import services.user.{DeleteUserService, FindUserService, ResourceNotFoundError}
+import services.user.errors.ResourceNotFoundError
+import services.user.{
+  CreateUserService,
+  DeleteUserService,
+  FindUserService,
+  ListUserService,
+  UpdateUserService
+}
 
 import javax.inject.Inject
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class UserControllerV2 @Inject() (
+    listUserService: ListUserService,
     findUserService: FindUserService,
-    deleteUserService: DeleteUserService
+    deleteUserService: DeleteUserService,
+    updateUserService: UpdateUserService,
+    createUserService: CreateUserService
 )(
     val controllerComponents: ControllerComponents
 ) extends BaseController
@@ -33,7 +43,7 @@ class UserControllerV2 @Inject() (
   def list = Action.async {
     logger.info("UserControllerV2#list start")
     val future = for {
-      userList <- dbClientV2.list
+      userList <- listUserService.list
     } yield Ok(toJson(userList))
 
     future.recover { case _ => InternalServerError }
@@ -52,13 +62,12 @@ class UserControllerV2 @Inject() (
     }
   }
 
-  // fixme 何回もcreateできてしまうのを直す
   def create = Action.async(parse.json) { req =>
     logger.info("UserControllerV2#create start")
 
     val future = for {
       userInfo <- JsValueToFuture[User](req.body)
-      _ <- dbClientV2.create(userInfo)
+      _ <- createUserService.create(userInfo)
     } yield Ok
 
     future.recover {
@@ -72,8 +81,7 @@ class UserControllerV2 @Inject() (
 
     val future = for {
       updateReq <- JsValueToFuture[UserUpdateRequest](req.body)
-      _ <- dbClientV2.find(id)
-      _ <- dbClientV2.update(id, updateReq)
+      _ <- updateUserService.updateById(id, updateReq)
     } yield Ok
 
     future.recover {

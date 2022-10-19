@@ -2,6 +2,7 @@ package infra.dbclients.v2
 
 import domain.{InvalidUpdateInfoError, User, UserUpdateRequest}
 import play.api.Logging
+import services.user.UserStore
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.model._
 
@@ -17,10 +18,12 @@ import infra.dbclients.v2.TypeConverter._
 
 /** user db client
   */
-class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
+class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
+    extends UserStore
+    with Logging {
   val table = "users"
 
-  def listById: Future[List[User]] = {
+  override def list: Future[List[User]] = {
     logger.info("DDB list user start.")
     val req = ScanRequest.builder().tableName(table).build()
 
@@ -33,7 +36,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(???, ???)
   }
 
-  def findById(id: String): Future[Option[User]] = {
+  override def findById(id: String): Future[Option[User]] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(s"DDB find user start. id=${id}")
     val req = GetItemRequest.builder().tableName(table).key(key).build()
@@ -44,7 +47,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(???, ???)
   }
 
-  def create(user: User): Future[Unit] = {
+  override def create(user: User): Future[Unit] = {
     val item = Map(
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
@@ -58,7 +61,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(const((): Unit), ???)
   }
 
-  def deleteById(id: String): Future[Unit] = {
+  override def deleteById(id: String): Future[Unit] = {
     val key = Map("user_id" -> toAttS(id))
     logger.info(s"DDB delete user start. id=${id}")
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
@@ -68,7 +71,10 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       .transform(const((): Unit), ???)
   }
 
-  def updateById(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
+  override def updateById(
+      id: String,
+      updateInfo: UserUpdateRequest
+  ): Future[Unit] = {
     val updatedValues = toUpdatedValues(updateInfo)
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
