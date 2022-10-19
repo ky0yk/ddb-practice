@@ -1,6 +1,7 @@
 package infra.dbclients.v2
 
 import domain.{InvalidUpdateInfoError, User, UserUpdateRequest}
+import infra.dbclients.DBClientErrorConverter.translateForClientError
 import play.api.Logging
 import services.user.UserStore
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
@@ -33,7 +34,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
         _.items()
           .map(toUser(_))
       )
-      .transform(???, ???)
+      .transform(identity, translateForClientError)
   }
 
   override def findById(id: String): Future[Option[User]] = {
@@ -44,7 +45,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
     client
       .getItem(req)
       .map(u => Option(toUser(u.item())))
-      .transform(???, ???)
+      .transform(identity, translateForClientError)
   }
 
   override def create(user: User): Future[Unit] = {
@@ -58,7 +59,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
 
     client
       .putItem(req)
-      .transform(const((): Unit), ???)
+      .transform(const((): Unit), translateForClientError)
   }
 
   override def deleteById(id: String): Future[Unit] = {
@@ -68,7 +69,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
 
     client
       .deleteItem(req)
-      .transform(const((): Unit), ???)
+      .transform(const((): Unit), translateForClientError)
   }
 
   override def updateById(
@@ -90,7 +91,7 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
         .build()
     client
       .updateItem(req)
-      .transform(const((): Unit), ???)
+      .transform(const((): Unit), translateForClientError)
   }
 
   private def toUser(item: JavaMap[String, AttributeValue]): User = {
