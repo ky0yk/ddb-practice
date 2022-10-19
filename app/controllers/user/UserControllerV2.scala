@@ -54,12 +54,13 @@ class UserControllerV2 @Inject() (
 
     val future = for {
       user <- findUserService.findByUserId(id)
-    } yield Ok(toJson(user))
+      result = user match {
+        case Some(_) => Ok(toJson(user))
+        case None    => NotFound
+      }
+    } yield result
 
-    future.recover {
-      case _: UserNotFoundError => NotFound
-      case _                    => InternalServerError
-    }
+    future.recover { case _ => InternalServerError }
   }
 
   def create = Action.async(parse.json) { req =>
@@ -86,7 +87,7 @@ class UserControllerV2 @Inject() (
 
     future.recover {
       case _: JsValueConvertError | _: InvalidUpdateInfoError => BadRequest
-      case _: UserNotFoundError                               => NotFound
+      case _: ResourceNotFoundError                           => NotFound
       case _                                                  => InternalServerError
     }
   }
@@ -95,7 +96,7 @@ class UserControllerV2 @Inject() (
     logger.info("UserControllerV2#delete start")
 
     val future = for {
-      _ <- deleteUserService.delete(id)
+      _ <- deleteUserService.deleteById(id)
     } yield NoContent
 
     future.recover {
