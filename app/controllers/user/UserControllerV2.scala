@@ -12,18 +12,29 @@ import domain.{
   UserNotFoundError,
   UserUpdateRequest
 }
-import infra.dbclients.v2.UserDBClientV2
 import play.api.Logging
 import play.api.libs.json.{JsValue, Reads}
 import play.api.libs.json.Json.toJson
-import play.api.mvc.{BaseController, ControllerComponents, Request}
+import play.api.mvc.{BaseController, ControllerComponents}
+import services.user.errors.ResourceNotFoundError
+import services.user.{
+  CreateUserService,
+  DeleteUserService,
+  FindUserService,
+  ListUserService,
+  UpdateUserService
+}
 
 import javax.inject.Inject
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class UserControllerV2 @Inject() (
-    dbClientV2: UserDBClientV2
+    listUserService: ListUserService,
+    findUserService: FindUserService,
+    deleteUserService: DeleteUserService,
+    updateUserService: UpdateUserService,
+    createUserService: CreateUserService
 )(
     val controllerComponents: ControllerComponents
 ) extends BaseController
@@ -32,7 +43,7 @@ class UserControllerV2 @Inject() (
   def list = Action.async {
     logger.info("UserControllerV2#list start")
     val future = for {
-      userList <- dbClientV2.list
+      userList <- listUserService.list
     } yield Ok(toJson(userList))
 
     future.recover { case _ => InternalServerError }
@@ -42,22 +53,22 @@ class UserControllerV2 @Inject() (
     logger.info("UserControllerV2#find start")
 
     val future = for {
-      user <- dbClientV2.find(id)
-    } yield Ok(toJson(user))
+      user <- findUserService.findByUserId(id)
+      result = user match {
+        case Some(_) => Ok(toJson(user))
+        case None    => NotFound
+      }
+    } yield result
 
-    future.recover {
-      case _: UserNotFoundError => NotFound
-      case _                    => InternalServerError
-    }
+    future.recover { case _ => InternalServerError }
   }
 
-  // fixme 何回もcreateできてしまうのを直す
   def create = Action.async(parse.json) { req =>
     logger.info("UserControllerV2#create start")
 
     val future = for {
       userInfo <- JsValueToFuture[User](req.body)
-      _ <- dbClientV2.create(userInfo)
+      _ <- createUserService.create(userInfo)
     } yield Ok
 
     future.recover {
@@ -71,13 +82,12 @@ class UserControllerV2 @Inject() (
 
     val future = for {
       updateReq <- JsValueToFuture[UserUpdateRequest](req.body)
-      _ <- dbClientV2.find(id)
-      _ <- dbClientV2.update(id, updateReq)
+      _ <- updateUserService.updateById(id, updateReq)
     } yield Ok
 
     future.recover {
       case _: JsValueConvertError | _: InvalidUpdateInfoError => BadRequest
-      case _: UserNotFoundError                               => NotFound
+      case _: ResourceNotFoundError                           => NotFound
       case _                                                  => InternalServerError
     }
   }
@@ -86,13 +96,12 @@ class UserControllerV2 @Inject() (
     logger.info("UserControllerV2#delete start")
 
     val future = for {
-      _ <- dbClientV2.find(id)
-      _ <- dbClientV2.delete(id)
+      _ <- deleteUserService.deleteById(id)
     } yield NoContent
 
     future.recover {
-      case _: UserNotFoundError => NotFound
-      case _                    => InternalServerError
+      case _: ResourceNotFoundError => NotFound
+      case _                        => InternalServerError
     }
   }
 
