@@ -1,12 +1,9 @@
 package infra.dbclients.v2
 
-import domain.{
-  InvalidUpdateInfoError,
-  User,
-  UserNotFoundError,
-  UserUpdateRequest
-}
+import domain.{InvalidUpdateInfoError, User, UserUpdateRequest}
+import DBClientErrorConverter.translateForClientError
 import play.api.Logging
+import services.user.UserStore
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.model._
 
@@ -22,60 +19,63 @@ import infra.dbclients.v2.TypeConverter._
 
 /** user db client
   */
-class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
+class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient)
+    extends UserStore
+    with Logging {
   val table = "users"
 
-  def list: Future[List[User]] = {
+  override def list: Future[List[Option[User]]] = {
     logger.info("DDB list user start.")
     val req = ScanRequest.builder().tableName(table).build()
+
     client
       .scan(req)
       .map(
         _.items()
           .map(toUser(_))
       )
+      .transform(identity, translateForClientError)
   }
 
-  def find(id: String): Future[User] = {
+  override def findById(id: String): Future[Option[User]] = {
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(s"DDB find user start. id=${id}")
     val req = GetItemRequest.builder().tableName(table).key(key).build()
+
     client
       .getItem(req)
-      .map { res =>
-        if (res.item().isEmpty) {
-          val msg = s"user not found. id=${id}"
-          logger.error(msg)
-          throw UserNotFoundError(msg)
-        }
-        toUser(res.item())
-      }
+      .map(u => toUser(u.item()))
+      .transform(identity, translateForClientError)
   }
 
-  def create(user: User): Future[Unit] = {
+  override def create(user: User): Future[Unit] = {
     val item = Map(
       "user_id" -> toAttS(user.id),
       "user_name" -> toAttS(user.name),
       "user_age" -> toAttN(user.age)
     )
     logger.info(s"DDB create user start. user=${item}")
-
     val req = PutItemRequest.builder().tableName(table).item(item).build()
+
     client
       .putItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), translateForClientError)
   }
 
-  def delete(id: String): Future[Unit] = {
+  override def deleteById(id: String): Future[Unit] = {
     val key = Map("user_id" -> toAttS(id))
     logger.info(s"DDB delete user start. id=${id}")
     val req = DeleteItemRequest.builder().tableName(table).key(key).build()
+
     client
       .deleteItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), translateForClientError)
   }
 
-  def update(id: String, updateInfo: UserUpdateRequest): Future[Unit] = {
+  override def updateById(
+      id: String,
+      updateInfo: UserUpdateRequest
+  ): Future[Unit] = {
     val updatedValues = toUpdatedValues(updateInfo)
     val key = Map("user_id" -> toAttS(id)).asJava
     logger.info(
@@ -91,15 +91,23 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
         .build()
     client
       .updateItem(req)
-      .transform(const((): Unit), identity)
+      .transform(const((): Unit), translateForClientError)
   }
 
-  private def toUser(item: JavaMap[String, AttributeValue]): User = {
-    User(
-      item.get("user_id").s(),
-      item.get("user_name").s(),
-      item.get("user_age").n().toInt
-    )
+  private def toUser(item: JavaMap[String, AttributeValue]): Option[User] = {
+    item.size() match {
+      case 0 =>
+        logger.warn("user not found.")
+        None
+      case _ =>
+        Some {
+          User(
+            item.get("user_id").s(),
+            item.get("user_name").s(),
+            item.get("user_age").n().toInt
+          )
+        }
+    }
   }
 
   private def toUpdatedValues(
@@ -131,7 +139,6 @@ class UserDBClientV2 @Inject() (client: DynamoDbAsyncClient) extends Logging {
       logger.error(msg)
       throw InvalidUpdateInfoError(msg)
     }
-
     updatedValues
   }
 
